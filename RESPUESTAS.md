@@ -116,12 +116,13 @@ ejecución local (`node --test test/integration/transferir.test.js`) varias vece
 
 
 ## Parte 2 · Implementación
-- Link al run en verde en main: https://github.com/Chavaper/INF384-lab4-dev/actions/runs/40964652993
-- Link al pull request:
-- Defecto de la aplicación introducido (archivo y descripción):
-En wallet, condición if en (línea 54): antes `(cuentaOrigen.saldo < centimos) `, ahora `(cuentaOrigen.saldo <= centimos) `. Si un usuario Diego quiere transferir 100 soles (10000 céntimos) a Elena, y Diego solo tiene como saldo 100 soles (10000 céntimos), se supone que debe poder. Antes, la condición daba: saldo (10000 céntimos) < centimos (10000 céntimos) => falso -> se transfiere. Ahora:  saldo (10000 céntimos) < centimos (10000 céntimos) => falso -> lanza ERROR.
-- Job que debería detenerlo:
-- Link al run fallido:
+- Link al run en verde en main:<br> 
+https://github.com/Chavaper/INF384-lab4-dev/actions/runs/40964652993
+- Link al pull request: https://github.com/Chavaper/INF384-lab4-dev/pull/1
+- Defecto de la aplicación introducido (archivo y descripción):<br>
+En wallet, condición if en (línea 54): antes `(cuentaOrigen.saldo < centimos) `, ahora `(cuentaOrigen.saldo <= centimos) `. Si un usuario Diego quiere transferir 100 soles (10000 céntimos) a Elena, y Diego solo tiene como saldo 100 soles (10000 céntimos), se supone que debe poder. Antes, la condición daba: saldo (10000 céntimos) < centimos (10000 céntimos) => falso -> se transfiere. Ahora:  saldo (10000 céntimos) < centimos (10000 céntimos) => falso -> lanza ERROR.<br>
+- Job que debería detenerlo:<br> unit y integration
+- Link al run fallido:<br> https://github.com/Chavaper/INF384-lab4-dev/actions/runs/40966922775
 
 ## Parte 3 · Decisión bajo restricción
 Link al run medido:
