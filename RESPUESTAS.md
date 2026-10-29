@@ -50,7 +50,7 @@ el workflow se dispara en `pull_request` y ningún job de entrega tiene condici�
 Trivy se ejecuta con `--include-dev-deps`, `--severity HIGH,CRITICAL` y `--exit-code 1`, sin `--ignore-unfixed`. El gate detiene el pipeline por vulnerabilidades en `@playwright/test`, `c8` y `esbuild`, que **no viajan en el artefacto** (el Dockerfile hace `npm prune --omit=dev`): hallazgos no alcanzables ni expuestos bloquean la entrega. Tampoco distingue si hay parche, así que una CVE sin corrección también detiene sin acción posible. Es un gate que prioriza por severidad y no por alcanzabilidad/exposición/parche, y además no genera SBOM.<br>
 
 - Link al commit:<br> 
- <br>
+https://github.com/Chavaper/INF384-lab4-dev/commit/f987c82 <br>
 
 - Corrección (una o más: mover de etapa / dejar como informativo / eliminar / ajustar configuración / modificar tests):<br> 
 ajustar configuración → quitar `--include-dev-deps` y agregar `--ignore-unfixed` en el gate; si se quiere visibilidad de las dev-deps, un segundo escaneo informativo (`--exit-code 0`) o en un evento programado. Generar el SBOM (`--format cyclonedx`) como artefacto.<br>
@@ -61,11 +61,24 @@ ajustar configuración → quitar `--include-dev-deps` y agregar `--ignore-unfix
     - `package.json` declara `@playwright/test`, `c8` y `esbuild` solo en `devDependencies`. `npm audit` local reporta `found 0 vulnerabilities`, por lo que el defecto es latente: se manifiesta el día que salga una CVE en una dev-dependency.<br>
 
 ### Defecto 4
-- Job y etapa:
-- Problema que causa en el pipeline:
-- Link al commit:
-- Corrección (una o más: mover de etapa / dejar como informativo / eliminar / ajustar configuración / modificar tests):
-- Evidencia (dato observado, con link al run o fragmento de la salida local):
+- Job y etapa:<br> 
+`build-push`, paso "Escaneo de la imagen (informativo)" · etapa Publicar.<br>
+
+- Problema que causa en el pipeline:<br> 
+el análisis de la imagen corre después del build pero **nunca detiene**: solo escribe un resumen y un `::warning`, y el paso siguiente hace `docker push` igual. Una imagen con hallazgos HIGH/CRITICAL de la base (`public.ecr.aws/lambda/nodejs:20`, sin fijar por digest) o del runtime llega al registro y se despliega. Las capas que no escribió el equipo (SO, runtime, base) quedan sin gate, y no se genera SBOM ni firma asociados al digest.<br>
+
+- Link al commit:<br> 
+https://github.com/Chavaper/INF384-lab4-dev/commit/ <br>
+
+- Corrección (una o más: mover de etapa / dejar como informativo / eliminar / ajustar configuración / modificar tests):<br> 
+ajustar configuración → convertirlo en gate antes del push: `--severity HIGH,CRITICAL --ignore-unfixed --exit-code 1`, de modo que si falla no exista imagen en ECR; generar el SBOM de la imagen junto al digest y fijar la imagen base por digest. <br>
+
+- Evidencia (dato observado, con link al run o fragmento de la salida local):<br> 
+    - `ci.yml:130` → `name: Escaneo de la imagen (informativo)`; 
+    - `ci.yml:152` → `echo "::warning ...::${altos} hallazgos HIGH o CRITICAL. Informativo, no detiene."`; 
+    - `ci.yml:154-157` → `docker push` incondicional a continuación.
+
+
 ### Defecto 5
 - Job y etapa:
 - Problema que causa en el pipeline:
