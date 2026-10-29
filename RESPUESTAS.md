@@ -129,31 +129,43 @@ Link al run medido:
 
 | Job | Duración (min:seg) |
 |---|---|
-| unit | |
-| integration | |
-| sast | |
-| sca | |
-| build-push | |
-| deploy | |
-| smoke | |
-| e2e | |
-| load | |
-| **Total** | |
+| unit | 15s |
+| integration | 15s |
+| sast | 21s |
+| sca | 17s |
+| build-push | 38s |
+| deploy | 18s |
+| smoke | 6s |
+| e2e | 1m 1s |
+| load | 12m 10s |
+| **Total** | 13m 29s |
 
 Resultado de load en ese run:
 | Métrica | Valor |
 |---|---|
-| p90 | |
-| p95 | |
-| Máximo | |
-| Tasa de error | |
-| Requests por segundo | |
+| p90 | 68.04 ms |
+| p95 | 70.03 ms |
+| Máximo | 624.83 ms |
+| Tasa de error | 0.00 % (0 de 35 162) |
+| Requests por segundo | 48.80 req/s |
 
 Conclusión sobre el comportamiento bajo carga:
+Con 30 usuarios virtuales sostenidos durante 10 minutos (~48.8 req/s, 35 162 requests entre `POST /transferir` y `GET /saldo/{usuario}`), Monedero Andino se mantuvo estable y sin errores: 0.00 % de `http_req_failed` y 100 % de checks. La latencia es baja y muy concentrada (mín. 55.8 ms, mediana 63.6 ms, p90 68.04 ms, p95 70.03 ms): entre la mediana y el p95 hay menos de 7 ms, lo que indica que el servicio no se degrada a medida que se sostiene la carga, y el p95 queda unas 7 veces por debajo del umbral `SLO_P95` de 500 ms. El único valor fuera de ese patrón es el máximo de 624.83 ms, un caso aislado (no mueve el p95) que es consistente con un arranque en frío de una nueva instancia de Lambda al escalar; es la cola que el percentil deja fuera y que sí sentiría un usuario puntual.
 
 SLO propuesto (percentil, valor, ventana) y justificación:
+- percentil: p95 de `http_req_duration` de los requests a la API (`/transferir`, `/saldo`, `/historial`).
+- valor: < 200 ms. Configurado en `ci.yml` como `SLO_P95: 200`.
+- ventana: 30 días móviles en producción, sobre todos los requests a la Function URL. En el pipeline, el job `load` lo verifica como compuerta temprana sobre la ventana de la prueba (la duración del escenario k6).
+- justificación:
+    - Umbral de 200 ms: El p95 observado fue 70.03 ms, por lo que 200 ms ofrece un margen de aproximadamente 2.9 veces.
+    - Por qué no 80–100 ms: Solo existe un run de referencia y la latencia varía por factores externos, como la ubicación del runner y los arranques en frío de Lambda. Un umbral menor podría generar falsos positivos.
+    - Por qué no 500 ms: Es demasiado permisivo (7 veces lo medido) y permitiría que regresiones importantes pasen desapercibidas. Con 200 ms se detectan degradaciones cercanas a 3 veces.
+
+
 
 SLA propuesto y diferencia con el SLO:
+- SLA propuesto: p95 de latencia menor a 500 ms y disponibilidad mínima de 99.5 % mensual, con créditos de servicio si se incumple. Se excluyen mantenimientos programados y caídas de AWS.
+- Diferencia con el SLO: El SLO es interno para el team, y suele ser mayor que el SLA para poder cumplirlo sin problemas.
 
 Cambios para cumplir el presupuesto:
 | Cambio | Job | Minutos recuperados |
