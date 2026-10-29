@@ -33,7 +33,7 @@ Esto porque sucede lo siguiente:
 el workflow se dispara en `pull_request` y ningún job de entrega tiene condición de rama/evento, así que **cada PR construye, publica en ECR y despliega a la única Lambda (producción)** con los secretos de AWS antes de ser revisado o mergeado. Un cambio no aprobado llega a la URL pública, pisa lo que hay en `main` y las pruebas post-despliegue de un PR y de `main` compiten por el mismo entorno (el `concurrency` de `deploy` solo los encola, no los separa).<br>
 
 - Link al commit:<br> 
- <br>
+ https://github.com/Chavaper/INF384-lab4-dev/commit/ee937f2 <br>
 
 - Corrección (una o más: mover de etapa / dejar como informativo / eliminar / ajustar configuración / modificar tests):
 <br> ajustar configuración → como `deploy` no se modifica, condicionar `build-push` con `if: github.event_name != 'pull_request'` (o `github.ref == 'refs/heads/main'`); `deploy`, `smoke`, `e2e` y `load` quedan saltados en PR por dependencia y el PR solo corre `unit`, `integration`, `sast` y `sca`.<br>
@@ -43,11 +43,23 @@ el workflow se dispara en `pull_request` y ningún job de entrega tiene condici�
     - `ci.yml:88` → `build-push` solo tiene `needs: [unit, integration, sast, sca]`, sin `if:`.<br>
 
 ### Defecto 3
-- Job y etapa:
-- Problema que causa en el pipeline:
-- Link al commit:
-- Corrección (una o más: mover de etapa / dejar como informativo / eliminar / ajustar configuración / modificar tests):
-- Evidencia (dato observado, con link al run o fragmento de la salida local):
+- Job y etapa:<br> 
+`sca` · etapa Seguridad (CI, antes del build).<br>
+
+- Problema que causa en el pipeline:<br> 
+Trivy se ejecuta con `--include-dev-deps`, `--severity HIGH,CRITICAL` y `--exit-code 1`, sin `--ignore-unfixed`. El gate detiene el pipeline por vulnerabilidades en `@playwright/test`, `c8` y `esbuild`, que **no viajan en el artefacto** (el Dockerfile hace `npm prune --omit=dev`): hallazgos no alcanzables ni expuestos bloquean la entrega. Tampoco distingue si hay parche, así que una CVE sin corrección también detiene sin acción posible. Es un gate que prioriza por severidad y no por alcanzabilidad/exposición/parche, y además no genera SBOM.<br>
+
+- Link al commit:<br> 
+ <br>
+
+- Corrección (una o más: mover de etapa / dejar como informativo / eliminar / ajustar configuración / modificar tests):<br> 
+ajustar configuración → quitar `--include-dev-deps` y agregar `--ignore-unfixed` en el gate; si se quiere visibilidad de las dev-deps, un segundo escaneo informativo (`--exit-code 0`) o en un evento programado. Generar el SBOM (`--format cyclonedx`) como artefacto.<br>
+
+- Evidencia (dato observado, con link al run o fragmento de la salida local):<br> 
+    - `ci.yml:82` → `--include-dev-deps \`; 
+    - `Dockerfile:8` → `RUN npm run build && npm prune --omit=dev`; 
+    - `package.json` declara `@playwright/test`, `c8` y `esbuild` solo en `devDependencies`. `npm audit` local reporta `found 0 vulnerabilities`, por lo que el defecto es latente: se manifiesta el día que salga una CVE en una dev-dependency.<br>
+
 ### Defecto 4
 - Job y etapa:
 - Problema que causa en el pipeline:
