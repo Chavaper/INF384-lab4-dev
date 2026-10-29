@@ -87,7 +87,7 @@ ajustar configuración → convertirlo en gate antes del push: `--severity HIGH,
 los tests de integración no son deterministas ni repetibles. Usan una base SQLite persistente en una ruta fija (`DB_PATH: /tmp/wallet.db`, la misma que el valor por defecto de `src/db.js`), no la crean ni la limpian, y cada test depende del estado que dejó el anterior con saldos absolutos (900, 600, 750, 1500). Pasan solo en la primera ejecución sobre una base vacía; cualquier reejecución en un runner reutilizado, en local o con otro orden de ejecución falla, generando fallos que no corresponden a un defecto del código y quitándole confianza al gate.<br>
 
 - Link al commit:<br> 
-https://github.com/Chavaper/INF384-lab4-dev/commit/ <br>
+https://github.com/Chavaper/INF384-lab4-dev/commit/44b0640 <br>
 
 - Corrección (una o más: mover de etapa / dejar como informativo / eliminar / ajustar configuración / modificar tests):<br> 
 modificar tests + ajustar configuración → crear una base temporal única por ejecución (p. ej. `fs.mkdtempSync` en un `before()` que fije `process.env.DB_PATH`, o `DB_PATH: ${{ runner.temp }}/wallet-${{ github.run_id }}.db`), borrarla en `after()`, y que cada test prepare su propio estado o compare saldos relativos al inicial.<br>
