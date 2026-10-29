@@ -170,12 +170,12 @@ SLA propuesto y diferencia con el SLO:
 Cambios para cumplir el presupuesto:
 | Cambio | Job | Minutos recuperados |
 |---|---|---|
-| Carga constante de `test/load/transferir.js` de 10 min a 5 min (≥ 4 min exigidos), con el mismo objetivo de 30 VUs y el umbral `p(95)<SLO_P95` (200 ms) | load | 5 |
+| Carga constante de `test/load/transferir.js` de 10 min a 5 min (≥ 4 min exigidos), con el mismo objetivo de 30 usuarios y el umbral `p(95)<SLO_P95` (200 ms) | load | 5 |
 | Rampa de subida de 1 min a 30 s | load | 0.5 |
 | Rampa de bajada de 1 min a 30 s | load | 0.5 |
 
-Total resultante: [~7.5] min (13m29s medidos − 6 min; `load` pasa de 12m10s a ~6m10s y sigue siendo el último job del camino crítico)
-Link al run en main con los cambios: https://github.com/Chavaper/INF384-lab4-dev/actions/runs/40971804409
+Total resultante: 7m 37s
+Link al run en main con los cambios: https://github.com/Chavaper/INF384-lab4-dev/actions/runs/40972314232
 
 Riesgo aceptado (defecto de la aplicación concreto y efecto en la métrica DORA asignada):<br>
 Al acortar la fase sostenida de `load` (de 10 min a ~5 min), deja de detectarse una degradación que solo aparece con carga prolongada. Ejemplo concreto: un cambio en `src/handler.js` que guarde cada respuesta de `/saldo` en un objeto global sin límite (fuga de memoria); la latencia sube recién después de varios minutos, cuando la instancia de Lambda se queda sin memoria, por lo que el p95 de una prueba corta sigue bajo 200 ms y el cambio llega a producción. Efecto en Change failure rate: ese despliegue cuenta como fallido (degradación en producción que obliga a revertir), así que la tasa sube; se mitiga corriendo el escenario largo de forma programada fuera del pipeline de cada push.<br>
