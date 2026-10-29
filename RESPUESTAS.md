@@ -68,7 +68,7 @@ ajustar configuración → quitar `--include-dev-deps` y agregar `--ignore-unfix
 el análisis de la imagen corre después del build pero **nunca detiene**: solo escribe un resumen y un `::warning`, y el paso siguiente hace `docker push` igual. Una imagen con hallazgos HIGH/CRITICAL de la base (`public.ecr.aws/lambda/nodejs:20`, sin fijar por digest) o del runtime llega al registro y se despliega. Las capas que no escribió el equipo (SO, runtime, base) quedan sin gate, y no se genera SBOM ni firma asociados al digest.<br>
 
 - Link al commit:<br> 
-https://github.com/Chavaper/INF384-lab4-dev/commit/ <br>
+https://github.com/Chavaper/INF384-lab4-dev/commit/23b5bf9 <br>
 
 - Corrección (una o más: mover de etapa / dejar como informativo / eliminar / ajustar configuración / modificar tests):<br> 
 ajustar configuración → convertirlo en gate antes del push: `--severity HIGH,CRITICAL --ignore-unfixed --exit-code 1`, de modo que si falla no exista imagen en ECR; generar el SBOM de la imagen junto al digest y fijar la imagen base por digest. <br>
@@ -80,11 +80,39 @@ ajustar configuración → convertirlo en gate antes del push: `--severity HIGH,
 
 
 ### Defecto 5
-- Job y etapa:
-- Problema que causa en el pipeline:
-- Link al commit:
-- Corrección (una o más: mover de etapa / dejar como informativo / eliminar / ajustar configuración / modificar tests):
-- Evidencia (dato observado, con link al run o fragmento de la salida local):
+- Job y etapa: <br>
+`integration` · etapa Pruebas (CI).<br>
+
+- Problema que causa en el pipeline:<br>
+los tests de integración no son deterministas ni repetibles. Usan una base SQLite persistente en una ruta fija (`DB_PATH: /tmp/wallet.db`, la misma que el valor por defecto de `src/db.js`), no la crean ni la limpian, y cada test depende del estado que dejó el anterior con saldos absolutos (900, 600, 750, 1500). Pasan solo en la primera ejecución sobre una base vacía; cualquier reejecución en un runner reutilizado, en local o con otro orden de ejecución falla, generando fallos que no corresponden a un defecto del código y quitándole confianza al gate.<br>
+
+- Link al commit:<br> 
+https://github.com/Chavaper/INF384-lab4-dev/commit/ <br>
+
+- Corrección (una o más: mover de etapa / dejar como informativo / eliminar / ajustar configuración / modificar tests):<br> 
+modificar tests + ajustar configuración → crear una base temporal única por ejecución (p. ej. `fs.mkdtempSync` en un `before()` que fije `process.env.DB_PATH`, o `DB_PATH: ${{ runner.temp }}/wallet-${{ github.run_id }}.db`), borrarla en `after()`, y que cada test prepare su propio estado o compare saldos relativos al inicial.<br>
+
+- Evidencia (dato observado, con link al run o fragmento de la salida local):<br> 
+ejecución local (`node --test test/integration/transferir.test.js`) varias veces seguidas con la misma `DB_PATH`:
+  ```
+  === corrida 1
+  # pass 12
+  # fail 0
+  === corrida 2
+  not ok 1 - ana transfiere 100 a beto
+  not ok 2 - el saldo de ana refleja el debito
+  not ok 3 - el saldo de beto refleja el credito
+  not ok 4 - el historial de ana registra la transferencia
+  not ok 6 - una transferencia rechazada no cambia saldos
+  not ok 7 - diego transfiere todo su saldo a elena
+  # pass 6
+  # fail 6
+  === corrida 3
+  not ok 1 - ana transfiere 100 a beto
+      700 !== 900
+  ```
+  El saldo de ana se acumula entre corridas (1000 → 900 → 800 → 700) porque la base no se reinicia.
+
 
 
 ## Parte 2 · Implementación
@@ -138,3 +166,5 @@ Decisión sobre sast (se queda / se mueve a otra etapa o evento / informativo) y
 
 ## Declaración de uso de IA
 Herramientas usadas y para qué:
+
+- Claude: para la prueba del defecto 5
