@@ -11,7 +11,7 @@ Presupuesto: [ ] min  Métrica DORA: [ ]
 `smoke` declara `needs: build-push` en lugar de `needs: deploy`, así que corre en paralelo con el despliegue. Como la Function URL ya existe desde la primera ejecución, el paso `URL` la obtiene de inmediato y `smoke.sh` golpea la versión **anterior** de la Lambda mientras `deploy` todavía hace `update-function-code`. Además el workflow no le pasa `EXPECTED_COMMIT`, por lo que el script se salta la verificación de `/version` contra `GITHUB_SHA`. Resultado: smoke, e2e y load pueden quedar en verde validando un artefacto que no es el que se acaba de construir (falso verde), y si `deploy` falla las pruebas post-despliegue igual se ejecutan.<br>
 
 - Link al commit:<br> 
-  <br>
+  https://github.com/Chavaper/INF384-lab4-dev/commit/62cdaf2<br>
 
 - Corrección (una o más: mover de etapa / dejar como informativo / eliminar / ajustar configuración / modificar tests):<br> 
 ajustar configuración → `smoke` con `needs: deploy` y en el paso `Smoke` agregar `EXPECTED_COMMIT: ${{ github.sha }}` para que el script espere hasta que `/version` devuelva el commit desplegado.<br>
@@ -26,11 +26,22 @@ Esto porque sucede lo siguiente:
 
 
 ### Defecto 2
-- Job y etapa:
-- Problema que causa en el pipeline:
-- Link al commit:
+- Job y etapa: <br>
+`build-push` → `deploy` · etapas Publicar / Desplegar, disparadas por el evento `pull_request`.<br>
+
+- Problema que causa en el pipeline: <br>
+el workflow se dispara en `pull_request` y ningún job de entrega tiene condición de rama/evento, así que **cada PR construye, publica en ECR y despliega a la única Lambda (producción)** con los secretos de AWS antes de ser revisado o mergeado. Un cambio no aprobado llega a la URL pública, pisa lo que hay en `main` y las pruebas post-despliegue de un PR y de `main` compiten por el mismo entorno (el `concurrency` de `deploy` solo los encola, no los separa).<br>
+
+- Link al commit:<br> 
+ <br>
+
 - Corrección (una o más: mover de etapa / dejar como informativo / eliminar / ajustar configuración / modificar tests):
-- Evidencia (dato observado, con link al run o fragmento de la salida local):
+<br> ajustar configuración → como `deploy` no se modifica, condicionar `build-push` con `if: github.event_name != 'pull_request'` (o `github.ref == 'refs/heads/main'`); `deploy`, `smoke`, `e2e` y `load` quedan saltados en PR por dependencia y el PR solo corre `unit`, `integration`, `sast` y `sca`.<br>
+
+- Evidencia (dato observado, con link al run o fragmento de la salida local):<br> 
+    - `ci.yml:4` → `pull_request:` sin filtro de ramas; 
+    - `ci.yml:88` → `build-push` solo tiene `needs: [unit, integration, sast, sca]`, sin `if:`.<br>
+
 ### Defecto 3
 - Job y etapa:
 - Problema que causa en el pipeline:
