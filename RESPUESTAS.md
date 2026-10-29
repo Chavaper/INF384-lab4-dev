@@ -1,6 +1,6 @@
 # Respuestas · Laboratorio 4
 Alumno: 20203648
-Presupuesto: [ ] min  Métrica DORA: [ ]
+Presupuesto: [11] min  Métrica DORA: [Change failure rate]
 
 ## Parte 1 · Diagnóstico
 ### Defecto 1
@@ -170,13 +170,18 @@ SLA propuesto y diferencia con el SLO:
 Cambios para cumplir el presupuesto:
 | Cambio | Job | Minutos recuperados |
 |---|---|---|
+| Carga constante de `test/load/transferir.js` de 10 min a 5 min (≥ 4 min exigidos), con el mismo objetivo de 30 VUs y el umbral `p(95)<SLO_P95` (200 ms) | load | 5 |
+| Rampa de subida de 1 min a 30 s | load | 0.5 |
+| Rampa de bajada de 1 min a 30 s | load | 0.5 |
 
-Total resultante: [ ] min
-Link al run en main con los cambios:
+Total resultante: [~7.5] min (13m29s medidos − 6 min; `load` pasa de 12m10s a ~6m10s y sigue siendo el último job del camino crítico)
+Link al run en main con los cambios: 
 
-Riesgo aceptado (defecto de la aplicación concreto y efecto en la métrica DORA asignada):
+Riesgo aceptado (defecto de la aplicación concreto y efecto en la métrica DORA asignada):<br>
+Al acortar la fase sostenida de `load` (de 10 min a ~5 min), deja de detectarse una degradación que solo aparece con carga prolongada. Ejemplo concreto: un cambio en `src/handler.js` que guarde cada respuesta de `/saldo` en un objeto global sin límite (fuga de memoria); la latencia sube recién después de varios minutos, cuando la instancia de Lambda se queda sin memoria, por lo que el p95 de una prueba corta sigue bajo 200 ms y el cambio llega a producción. Efecto en Change failure rate: ese despliegue cuenta como fallido (degradación en producción que obliga a revertir), así que la tasa sube; se mitiga corriendo el escenario largo de forma programada fuera del pipeline de cada push.<br>
 
-Decisión sobre sast (se queda / se mueve a otra etapa o evento / informativo) y razón:
+Decisión sobre sast (se queda / se mueve a otra etapa o evento / informativo) y razón:<br>
+Se queda como gate en CI. Dura 21 s y corre en paralelo con `unit`, `integration` y `sca`, por lo que sacarlo no recupera tiempo del camino crítico (que domina `load`). Es rápido, determinista, acotado a `src/` y con `--severity ERROR`, que son las condiciones para que un control detenga en CI; moverlo después del deploy dejaría llegar a producción una inyección en una API pública que maneja dinero.
 
 ## Declaración de uso de IA
 Herramientas usadas y para qué:
